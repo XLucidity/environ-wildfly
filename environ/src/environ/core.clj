@@ -1,6 +1,7 @@
 (ns environ.core
   (:require [clojure.string :as str]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [immutant.wildfly :as wildfly]))
 
 (defn- keywordize [s]
   (-> (str/lower-case s)
@@ -29,9 +30,17 @@
       (into {} (for [[k v] (read-string (slurp env-file))]
                  [(sanitize k) v])))))
 
+(defn- read-wildfly-context-env-file [context-path]
+  (let [path     (str "/Users/edvorg/.environ/" context-path "/.lein-env")
+        env-file (io/file path)]
+    (if (.exists env-file)
+      (into {} (for [[k v] (read-string (slurp env-file))]
+                 [(sanitize k) v])))))
+
 (defonce ^{:doc "A map of environment variables."}
   env
   (merge
+   (read-wildfly-context-env-file (wildfly/context-path))
    (read-env-file)
    (read-system-env)
    (read-system-props)))
