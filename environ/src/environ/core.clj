@@ -24,7 +24,7 @@
        (map (fn [[k v]] [(keywordize k) v]))
        (into {})))
 
-(defn- read-env-file []
+(defn- read-local-env-file []
   (let [env-file (io/file ".lein-env")]
     (if (.exists env-file)
       (into {} (for [[k v] (read-string (slurp env-file))]
@@ -39,8 +39,15 @@
 
 (defonce ^{:doc "A map of environment variables."}
   env
-  (merge
-   (read-wildfly-context-env-file (wildfly/context-path))
-   (read-env-file)
-   (read-system-env)
-   (read-system-props)))
+  (let [local-env            (read-local-env-file)
+        system-env           (read-system-env)
+        {:keys [jboss-home-dir]
+         :as   system-props} (read-system-props)
+        wildfly-context-env  (if jboss-home-dir
+                               (read-wildfly-context-env-file (wildfly/context-path))
+                               {})]
+    (merge
+     wildfly-context-env
+     local-env
+     system-env
+     system-props)))
