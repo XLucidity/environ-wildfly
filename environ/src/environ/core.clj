@@ -1,7 +1,7 @@
 (ns environ.core
   (:require [clojure.string :as str]
-            [clojure.java.io :as io]
-            [immutant.wildfly :as wildfly]))
+            [clojure.java.io :as io])
+  (:import org.projectodd.wunderboss.WunderBoss))
 
 (defn- keywordize [s]
   (-> (str/lower-case s)
@@ -30,8 +30,8 @@
       (into {} (for [[k v] (read-string (slurp env-file))]
                  [(sanitize k) v])))))
 
-(defn- read-wildfly-context-env-file [context-path]
-  (let [path     (str "/Users/edvorg/.environ/" context-path "/.lein-env")
+(defn- read-wildfly-context-env-file [context]
+  (let [path     (str "/Users/edvorg/.environ/" context "/.lein-env")
         env-file (io/file path)]
     (if (.exists env-file)
       (into {} (for [[k v] (read-string (slurp env-file))]
@@ -39,13 +39,16 @@
 
 (defonce ^{:doc "A map of environment variables."}
   env
-  (let [local-env            (read-local-env-file)
-        system-env           (read-system-env)
-        {:keys [jboss-home-dir]
-         :as   system-props} (read-system-props)
-        wildfly-context-env  (if jboss-home-dir
-                               (read-wildfly-context-env-file (wildfly/context-path))
-                               {})]
+  (let [deployment-name     (-> (WunderBoss/options) (get "deployment-name"))
+        context             (if deployment-name
+                              (clojure.string/replace deployment-name #"(.*)\.war$" "$1")
+                              nil)
+        wildfly-context-env (if context
+                              (read-wildfly-context-env-file context)
+                              {})
+        local-env           (read-local-env-file)
+        system-env          (read-system-env)
+        system-props        (read-system-props)]
     (merge
      wildfly-context-env
      local-env
