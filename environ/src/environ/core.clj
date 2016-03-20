@@ -30,8 +30,8 @@
       (into {} (for [[k v] (read-string (slurp env-file))]
                  [(sanitize k) v])))))
 
-(defn- read-wildfly-context-env-file [context]
-  (let [path     (str "/Users/edvorg/.environ/" context "/.lein-env")
+(defn- read-wildfly-context-env-file [home context]
+  (let [path     (str home "/.environ/" context "/.lein-env")
         env-file (io/file path)]
     (if (.exists env-file)
       (into {} (for [[k v] (read-string (slurp env-file))]
@@ -39,15 +39,16 @@
 
 (defonce ^{:doc "A map of environment variables."}
   env
-  (let [deployment-name     (-> (WunderBoss/options) (get "deployment-name"))
+  (let [{:keys [home]
+         :as   system-env}  (read-system-env)
+        deployment-name     (-> (WunderBoss/options) (get "deployment-name"))
         context             (if deployment-name
                               (clojure.string/replace deployment-name #"(.*)\.war$" "$1")
                               nil)
         wildfly-context-env (if context
-                              (read-wildfly-context-env-file context)
+                              (read-wildfly-context-env-file home context)
                               {})
         local-env           (read-local-env-file)
-        system-env          (read-system-env)
         system-props        (read-system-props)]
     (merge
      wildfly-context-env
